@@ -500,15 +500,17 @@ class RuleEngine:
             result["checked_by"]  = "rule_engine"
             return result
 
-        # Check 2: Unbundling (uses NCCI table)
-        result = self.check_unbundling(claim)
+        # Check 2: Modifier abuse (-59) — run BEFORE unbundling
+        # because modifier abuse IS unbundling but with an explicit -59 flag
+        # catching it here gives more specific fraud type labelling
+        result = self.check_modifier_abuse(claim)
         if result:
             result["claim_id"]    = claim_id
             result["checked_by"]  = "rule_engine"
             return result
 
-        # Check 3: Modifier abuse (-59)
-        result = self.check_modifier_abuse(claim)
+        # Check 3: Unbundling (uses NCCI table)
+        result = self.check_unbundling(claim)
         if result:
             result["claim_id"]    = claim_id
             result["checked_by"]  = "rule_engine"

@@ -294,7 +294,7 @@ def generate_edi_837(claim):
         # Format: HC:cpt_code[:modifier], charge, UN (units), qty, , , diagnosis_pointer
         code      = edi_safe(proc_codes[li], 10)
         charge    = format_edi_amount(line_charges[li] if li < len(line_charges) else 0)
-        modifier  = edi_safe(modifiers[li], 2) if li < len(modifiers) and modifiers[li] else ""
+        modifier  = edi_safe(str(modifiers[li]).replace("-","").strip(), 2) if li < len(modifiers) and modifiers[li] else ""
 
         # Build the composite service ID: HC:CPTcode or HC:CPTcode:modifier
         if modifier:
