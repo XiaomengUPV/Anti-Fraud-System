@@ -211,14 +211,12 @@ def extract_cpt_codes(text):
     codes.extend([c.upper() for c in re.findall(r"\b(\d{4}M)\b", cleaned, re.IGNORECASE)])
     codes.extend([c.upper() for c in re.findall(r"\b(\d{4}U)\b", cleaned, re.IGNORECASE)])
 
-    seen = set()
+    # REPLACE with this:
     result = []
     for code in codes:
         if code.isdigit() and 1900 <= int(code) <= 2099:
             continue
-        if code not in seen:
-            seen.add(code)
-            result.append(code)
+        result.append(code)
     return result
 
 
