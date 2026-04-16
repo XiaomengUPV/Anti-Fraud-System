@@ -337,10 +337,16 @@ def extract_cpt_codes(text):
     for code in codes:
         if code.isdigit() and 1900 <= int(code) <= 2099:
             continue  # Skip years
-        # Skip codes that appear after PAT-, ACCT, #, GRP-, UHC- etc.
-        # These are policy/account numbers not CPT codes
-        ctx_pattern = rf'(?:PAT|ACCT|GRP|UHC|NPI|SSN|EIN|FECA|TAX)[^A-Z]{{0,5}}{re.escape(code)}'
+        # Skip codes that appear inside policy/account/ID numbers
+        # e.g. GRP-AET-77342, PAT-38847, UHC-847291053, NPI 9876543210
+        # Strategy: check if the code appears within 30 chars after known prefixes
+        # OR if it's part of a hyphenated sequence (policy numbers like GRP-AET-77342)
+        ctx_pattern = rf'(?:PAT|ACCT|GRP|UHC|NPI|SSN|EIN|FECA|TAX|AET|BCBS|CVS|HMO|PPO)[^\n]{{0,15}}{re.escape(code)}'
         if re.search(ctx_pattern, cleaned, re.IGNORECASE):
+            continue
+        # Also skip if the code is preceded by a hyphen (part of an ID like GRP-AET-77342)
+        hyphen_pattern = rf'-{re.escape(code)}\b'
+        if re.search(hyphen_pattern, cleaned):
             continue
         result.append(code)
 
