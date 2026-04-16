@@ -112,41 +112,49 @@ def build_fraud_prompt(claim, fee_schedule):
             price_lines.append(f"    {code}: not in fee schedule")
     price_context = "\n".join(price_lines) if price_lines else "    No fee schedule data"
 
-    return f"""You are a medical billing fraud detection expert reviewing one insurance claim.
+    # Build known fraud patterns context
+    known_patterns = ""
+    if "0026U" in cpt_codes or "0048U" in cpt_codes or "0006M" in cpt_codes:
+        known_patterns += "\n- NOTE: Codes 0026U/0048U/0006M are advanced oncology/genomic tests costing $3,000-$5,000+. These are NEVER indicated for routine wellness, colds, or non-oncology diagnoses."
+    if "93458" in cpt_codes or "93454" in cpt_codes:
+        known_patterns += "\n- NOTE: CPT 93458/93454 is invasive cardiac catheterization. This is NEVER performed for respiratory infections, routine visits, or non-cardiac diagnoses."
+    if "J06.9" in icd10_codes and any(c in cpt_codes for c in ["0026U","0048U","93458","93454","0006M"]):
+        known_patterns += "\n- CRITICAL: J06.9 is common cold/upper respiratory infection. High-cost specialty procedures billed with J06.9 are ALWAYS fraudulent."
+    if "Z00.00" in icd10_codes and total_charge > 500:
+        known_patterns += "\n- CRITICAL: Z00.00 is routine wellness exam. Specialty procedures over $500 billed with Z00.00 only are ALWAYS phantom billing."
 
-Determine if this claim contains any of these 5 fraud types:
-1. UPCODING: Procedure code is more expensive than the diagnosis justifies
-2. CODE PADDING: Unrelated high-value codes added to inflate the total
-3. PHANTOM BILLING: Procedure is clinically impossible given the diagnosis
-4. DIAGNOSIS MISMATCH: Procedure has no valid clinical relationship to the diagnosis
-5. CODE SUBSTITUTION: Non-covered procedure substituted with a covered code
+    return f"""You are a medical billing fraud detection expert. Your job is to flag fraud — be decisive.
+
+Determine if this claim contains fraud:
+1. PHANTOM BILLING: Procedure clinically impossible or never indicated for this diagnosis
+2. DIAGNOSIS MISMATCH: No valid clinical relationship between procedure and diagnosis  
+3. UPCODING: Procedure billed at higher complexity than diagnosis justifies
+4. CODE PADDING: Unrelated high-value codes added to inflate total
+5. CODE SUBSTITUTION: Non-covered procedure disguised as covered code
 
 CLAIM:
 - Claim ID: {claim.get("claim_id", "?")}
-- Date: {date}
-- Provider: {provider}
 - CPT/HCPCS Codes: {", ".join(cpt_codes) if cpt_codes else "None"}
 - ICD-10 Diagnoses: {", ".join(icd10_codes) if icd10_codes else "None"}
 - Modifiers: {", ".join(modifiers) if modifiers else "None"}
 - Total Billed: ${total_charge:,.2f}
 
-CMS 2026 MEDICARE FEE SCHEDULE (official allowed rates):
+CMS FEE SCHEDULE:
 {price_context}
+{known_patterns}
 
-RULES:
-- Flag clearly clinically implausible combinations with HIGH confidence — do not hesitate
-- A $3,000+ specialized oncology/genomic test (0026U, 0048U) on a routine wellness visit (Z00.00) is ALWAYS phantom billing
-- A cardiac catheterization or major surgery with a cold/infection diagnosis is ALWAYS a diagnosis mismatch
-- Legitimate claims bill 100-300% of Medicare rate — above 500% is suspicious
-- If the CPT code is not in the fee schedule, use clinical judgment about the code-diagnosis relationship
-- Be decisive: clear clinical impossibilities should be HIGH confidence, not low
+DECISION RULES — apply in order:
+1. If a CRITICAL note above applies to this claim → fraud_detected=true, HIGH confidence, no exceptions
+2. If specialty procedure (oncology, cardiac, surgical) has unrelated diagnosis → Diagnosis Mismatch, HIGH confidence
+3. If total billed is >400% of Medicare rate → Upcoding, MEDIUM confidence
+4. If no clinical red flags and price is reasonable → legitimate
 
-Respond ONLY with this exact JSON format, no other text:
+Respond ONLY with valid JSON, no other text:
 {{
   "fraud_detected": true or false,
-  "fraud_type": "Upcoding" | "Code Padding" | "Phantom Billing" | "Diagnosis Mismatch" | "Code Substitution" | null,
+  "fraud_type": "Phantom Billing" | "Diagnosis Mismatch" | "Upcoding" | "Code Padding" | "Code Substitution" | null,
   "confidence": "high" | "medium" | "low",
-  "explanation": "One sentence explaining why this is or is not fraud."
+  "explanation": "One clear sentence explaining the fraud or why the claim is legitimate."
 }}"""
 
 
