@@ -1,8 +1,0 @@
-data/pdfs/
-data/splits/
-__pycache__/
-*.pyc
-.env
-.venv/
-*.egg-info/
-.DS_Store
