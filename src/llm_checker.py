@@ -112,42 +112,55 @@ def build_fraud_prompt(claim, fee_schedule):
             price_lines.append(f"    {code}: not in fee schedule")
     price_context = "\n".join(price_lines) if price_lines else "    No fee schedule data"
 
-    # Build known fraud patterns context
-    known_patterns = ""
-    if "0026U" in cpt_codes or "0048U" in cpt_codes or "0006M" in cpt_codes:
-        known_patterns += "\n- NOTE: Codes 0026U/0048U/0006M are advanced oncology/genomic tests costing $3,000-$5,000+. These are NEVER indicated for routine wellness, colds, or non-oncology diagnoses."
-    if "93458" in cpt_codes or "93454" in cpt_codes:
-        known_patterns += "\n- NOTE: CPT 93458/93454 is invasive cardiac catheterization. This is NEVER performed for respiratory infections, routine visits, or non-cardiac diagnoses."
-    if "J06.9" in icd10_codes and any(c in cpt_codes for c in ["0026U","0048U","93458","93454","0006M"]):
-        known_patterns += "\n- CRITICAL: J06.9 is common cold/upper respiratory infection. High-cost specialty procedures billed with J06.9 are ALWAYS fraudulent."
-    if "Z00.00" in icd10_codes and total_charge > 500:
-        known_patterns += "\n- CRITICAL: Z00.00 is routine wellness exam. Specialty procedures over $500 billed with Z00.00 only are ALWAYS phantom billing."
+    # Build diagnosis context (code + description when available)
+    diag_descs = claim.get("diagnosis_descs", [])
+    diag_lines = []
+    for i, icd in enumerate(icd10_codes):
+        desc = diag_descs[i] if i < len(diag_descs) else ""
+        diag_lines.append(f"    {icd}" + (f" \u2014 {desc}" if desc else ""))
+    diag_context = "\n".join(diag_lines) if diag_lines else "    None"
 
-    return f"""You are a medical billing fraud detection expert. Your job is to flag fraud — be decisive.
+    return f"""You are a medical billing fraud analyst reviewing a single CMS-1500 claim in isolation.
 
-Determine if this claim contains fraud:
-1. PHANTOM BILLING: Procedure clinically impossible or never indicated for this diagnosis
-2. DIAGNOSIS MISMATCH: No valid clinical relationship between procedure and diagnosis  
-3. UPCODING: Procedure billed at higher complexity than diagnosis justifies
-4. CODE PADDING: Unrelated high-value codes added to inflate total
-5. CODE SUBSTITUTION: Non-covered procedure disguised as covered code
+Fraud types to consider (pick the ONE that fits best if fraud is present):
+1. PHANTOM BILLING \u2014 the billed procedure could not plausibly have been performed for this
+   patient encounter (e.g. highly specialized diagnostics with no supporting diagnosis at all).
+2. DIAGNOSIS MISMATCH \u2014 a real, plausible procedure, but no valid clinical relationship
+   between it and ANY diagnosis on the claim.
+3. UPCODING \u2014 a more complex/expensive CODE LEVEL than the documented condition justifies
+   (e.g. highest-level office visit for a minor stable condition). Judged on code choice,
+   NOT on the dollar amount billed.
+4. CODE PADDING \u2014 a plausible base service plus added unrelated high-value codes.
+5. CODE SUBSTITUTION \u2014 the code pattern suggests a non-covered service (cosmetic,
+   experimental, screening beyond frequency limits) was rebilled under a covered code,
+   e.g. the diagnosis fits a non-covered service while the billed code is a covered look-alike.
+
+How to distinguish: PHANTOM = service almost certainly never happened; MISMATCH = service
+plausibly happened but doesn't fit the diagnosis; UPCODING = right service family, inflated level.
 
 CLAIM:
-- Claim ID: {claim.get("claim_id", "?")}
 - CPT/HCPCS Codes: {", ".join(cpt_codes) if cpt_codes else "None"}
-- ICD-10 Diagnoses: {", ".join(icd10_codes) if icd10_codes else "None"}
+- ICD-10 Diagnoses:
+{diag_context}
 - Modifiers: {", ".join(modifiers) if modifiers else "None"}
 - Total Billed: ${total_charge:,.2f}
 
-CMS FEE SCHEDULE:
+CMS FEE SCHEDULE CONTEXT:
 {price_context}
-{known_patterns}
 
-DECISION RULES — apply in order:
-1. If a CRITICAL note above applies to this claim → fraud_detected=true, HIGH confidence, no exceptions
-2. If specialty procedure (oncology, cardiac, surgical) has unrelated diagnosis → Diagnosis Mismatch, HIGH confidence
-3. If total billed is >400% of Medicare rate → Upcoding, MEDIUM confidence
-4. If no clinical red flags and price is reasonable → legitimate
+PRICING GUIDANCE: Billed charges routinely run 100\u2013400% of the Medicare rate for
+commercial payers. A high markup ALONE is not fraud and must not be flagged. Price is
+only a SUPPORTING signal when there is already a clinical inconsistency between the
+procedure and the diagnoses.
+
+EVIDENCE STANDARD:
+- fraud_detected=true with confidence "high" ONLY when the procedure/diagnosis combination
+  is clinically indefensible (e.g. invasive cardiac catheterization for a common cold).
+- confidence "medium" when the combination is unusual and hard to justify, but a rare
+  legitimate scenario exists.
+- If the procedure is a reasonable match for at least one diagnosis on the claim, the claim
+  is LEGITIMATE regardless of price. Do not invent doubts. A single routine service with a
+  consistent diagnosis is legitimate.
 
 Respond ONLY with valid JSON, no other text:
 {{
@@ -368,7 +381,7 @@ if __name__ == "__main__":
                 fraud_counts["Legitimate (LLM passed)"] += 1
 
             # Save individual result file
-            with open(LLM_DIR / f"{claim_id}_llm.json", "w") as f:
+            with open(LLM_DIR / f"{claim_id}_llm.json", "w", encoding="utf-8") as f:
                 json.dump(result, f, indent=2)
 
             # Progress + live cost every 100 claims

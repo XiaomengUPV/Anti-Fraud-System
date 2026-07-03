@@ -186,7 +186,7 @@ def generate_report(results, binary, per_type, fn_analysis, fp_analysis):
     add()
     header("FRAUD DETECTION SYSTEM — EVALUATION REPORT")
     add(f"  Cornell University  |  Hazel Sun & Team")
-    add(f"  Model: Rule Engine + Claude Sonnet 4.6")
+    add(f"  Model: Rule Engine + Claude LLM layer (see MODEL in llm_checker.py)")
     add(f"  Dataset: 1,300 synthetic CMS-1500 claims")
     add("=" * W)
 
@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
     # Save report to file
     report_path = REPORTS_DIR / "evaluation_report.txt"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
 
     # Save metrics as JSON for programmatic use
@@ -349,7 +349,7 @@ if __name__ == "__main__":
         "false_positives":  fp_analysis,
     }
     metrics_path = REPORTS_DIR / "metrics.json"
-    with open(metrics_path, "w") as f:
+    with open(metrics_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2)
 
     print(f"\n  Report saved to : {report_path}")
