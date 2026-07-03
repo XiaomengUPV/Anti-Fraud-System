@@ -185,7 +185,7 @@ def generate_report(results, binary, per_type, fn_analysis, fp_analysis):
     # ── Cover ──────────────────────────────────────────────────────────────────
     add()
     header("FRAUD DETECTION SYSTEM — EVALUATION REPORT")
-    add(f"  Cornell University  |  [YOUR NAME] & Team")
+    add(f"  Cornell University  |  Hazel Sun & Team")
     add(f"  Model: Rule Engine + Claude Sonnet 4.6")
     add(f"  Dataset: 1,300 synthetic CMS-1500 claims")
     add("=" * W)
