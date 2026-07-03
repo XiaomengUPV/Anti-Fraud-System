@@ -11,16 +11,16 @@
   ──────────────────────────────────────────────────────────
 
   Total Claims   : 1,300
-  Precision      : 0.937  (93.7% of fraud flags were correct)
-  Recall         : 0.944  (caught 94.4% of all real fraud)
-  F1 Score       : 0.941  ✅ TARGET MET (≥0.75)
-  Accuracy       : 0.918
+  Precision      : 0.894  (89.4% of fraud flags were correct)
+  Recall         : 0.952  (caught 95.2% of all real fraud)
+  F1 Score       : 0.922  ✅ TARGET MET (≥0.75)
+  Accuracy       : 0.888
 
   Confusion Matrix:
-    True Positives  :   850  ← real fraud correctly caught
-    False Positives :    57  ← legitimate wrongly flagged
-    True Negatives  :   343  ← legitimate correctly cleared
-    False Negatives :    50  ← real fraud missed
+    True Positives  :   857  ← real fraud correctly caught
+    False Positives :   102  ← legitimate wrongly flagged
+    True Negatives  :   298  ← legitimate correctly cleared
+    False Negatives :    43  ← real fraud missed
 
   PER FRAUD TYPE PERFORMANCE
   ──────────────────────────────────────────────────────────
@@ -28,64 +28,64 @@
   Fraud Type                     N   Det  Miss   Prec    Rec     F1 Status
   ────────────────────────── ───── ───── ───── ────── ────── ────── ────────
   Code Padding                 100   100     0  1.000  1.000  1.000 ✅ MET
-  Code Substitution            100    78    22  0.655  0.780  0.712 ⚠️  MISS
-  Diagnosis Mismatch           120   120     0  0.566  1.000  0.723 ⚠️  MISS
+  Code Substitution            100    78    22  0.619  0.780  0.690 ⚠️  MISS
+  Diagnosis Mismatch           120   120     0  0.455  1.000  0.625 ⚠️  MISS
   Duplicate Billing             80    80     0  1.000  1.000  1.000 ✅ MET
   Modifier Abuse (-59)         100   100     0  1.000  1.000  1.000 ✅ MET
-  Phantom Billing              100   100     0  0.637  1.000  0.778 ✅ MET
-  Screening Code Abuse          80    80     0  0.602  1.000  0.751 ✅ MET
+  Phantom Billing              100   100     0  0.610  1.000  0.758 ✅ MET
+  Screening Code Abuse          80    80     0  0.606  1.000  0.755 ✅ MET
   Unbundling                   100   100     0  0.794  1.000  0.885 ✅ MET
-  Upcoding                     120    92    28  0.814  0.767  0.790 ✅ MET
+  Upcoding                     120    99    21  0.832  0.825  0.828 ✅ MET
 
   FALSE NEGATIVE ANALYSIS (fraud we missed)
   ──────────────────────────────────────────────────────────
 
-  Total fraud missed : 50
+  Total fraud missed : 43
   (a missed claim was, by definition, cleared by both engines)
 
   Missed by fraud type:
-    Upcoding                       28 missed  (23% of that type)
     Code Substitution              22 missed  (22% of that type)
+    Upcoding                       21 missed  (18% of that type)
 
   FALSE POSITIVE ANALYSIS (legitimate claims we wrongly flagged)
   ──────────────────────────────────────────────────────────
 
-  Total wrongly flagged : 57
+  Total wrongly flagged : 102
 
   By predicted fraud type:
-    Upcoding                       21
-    Diagnosis Mismatch             15
-    Code Substitution              13
-    Screening Code Abuse            8
+    Diagnosis Mismatch             63
+    Upcoding                       20
+    Code Substitution              12
+    Screening Code Abuse            7
 
   By engine:
-    llm_claude                     49
-    rule_engine                     8
+    llm_claude                     95
+    rule_engine                     7
 
   IMPROVEMENT RECOMMENDATIONS
   ──────────────────────────────────────────────────────────
 
-  Code Substitution (F1=0.712):
+  Diagnosis Mismatch (F1=0.625):
+    → High recall (finding many) but low precision (false alarms).
+    → Improve: tighten the prompt to require stronger evidence
+      before flagging — two-step check: is there ANY valid link?
+
+  Code Substitution (F1=0.690):
     → Very subtle fraud — non-covered code swapped for covered.
       LLM cannot easily detect this without coverage data.
     → Improve: add a coverage lookup table mapping non-covered
       codes to their covered substitutes.
 
-  Diagnosis Mismatch (F1=0.723):
-    → High recall (finding many) but low precision (false alarms).
-    → Improve: tighten the prompt to require stronger evidence
-      before flagging — two-step check: is there ANY valid link?
-
 
   SUMMARY
   ──────────────────────────────────────────────────────────
 
-  Overall F1 : 0.941  ✅ PASS
+  Overall F1 : 0.922  ✅ PASS
   Types met  : 7 / 9
   Types below: 2 / 9
 
   Strongest fraud types: Code Padding (F1=1.00), Duplicate Billing (F1=1.00), Modifier Abuse (-59) (F1=1.00).
-  Weakest fraud types  : Diagnosis Mismatch (F1=0.72), Code Substitution (F1=0.71) — see
+  Weakest fraud types  : Code Substitution (F1=0.69), Diagnosis Mismatch (F1=0.62) — see
   improvement recommendations above.
 
 ============================================================

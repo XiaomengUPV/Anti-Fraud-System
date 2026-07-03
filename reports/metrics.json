@@ -1,45 +1,45 @@
 {
   "binary": {
     "total": 1300,
-    "tp": 581,
-    "fp": 31,
-    "fn": 319,
-    "tn": 369,
-    "precision": 0.949,
-    "recall": 0.646,
-    "f1": 0.769,
-    "accuracy": 0.731
+    "tp": 850,
+    "fp": 57,
+    "fn": 50,
+    "tn": 343,
+    "precision": 0.937,
+    "recall": 0.944,
+    "f1": 0.941,
+    "accuracy": 0.918
   },
   "per_fraud_type": {
     "Code Padding": {
       "true_count": 100,
-      "tp": 83,
+      "tp": 100,
       "fp": 0,
-      "fn": 17,
+      "fn": 0,
       "precision": 1.0,
-      "recall": 0.83,
-      "f1": 0.907,
-      "detection_rate": 0.83
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_rate": 1.0
     },
     "Code Substitution": {
       "true_count": 100,
-      "tp": 4,
-      "fp": 12,
-      "fn": 96,
-      "precision": 0.25,
-      "recall": 0.04,
-      "f1": 0.069,
-      "detection_rate": 0.04
+      "tp": 78,
+      "fp": 41,
+      "fn": 22,
+      "precision": 0.655,
+      "recall": 0.78,
+      "f1": 0.712,
+      "detection_rate": 0.78
     },
     "Diagnosis Mismatch": {
       "true_count": 120,
-      "tp": 66,
-      "fp": 44,
-      "fn": 54,
-      "precision": 0.6,
-      "recall": 0.55,
-      "f1": 0.574,
-      "detection_rate": 0.55
+      "tp": 120,
+      "fp": 92,
+      "fn": 0,
+      "precision": 0.566,
+      "recall": 1.0,
+      "f1": 0.723,
+      "detection_rate": 1.0
     },
     "Duplicate Billing": {
       "true_count": 80,
@@ -63,22 +63,22 @@
     },
     "Phantom Billing": {
       "true_count": 100,
-      "tp": 56,
-      "fp": 61,
-      "fn": 44,
-      "precision": 0.479,
-      "recall": 0.56,
-      "f1": 0.516,
-      "detection_rate": 0.56
+      "tp": 100,
+      "fp": 57,
+      "fn": 0,
+      "precision": 0.637,
+      "recall": 1.0,
+      "f1": 0.778,
+      "detection_rate": 1.0
     },
     "Screening Code Abuse": {
       "true_count": 80,
       "tp": 80,
-      "fp": 52,
+      "fp": 53,
       "fn": 0,
-      "precision": 0.606,
+      "precision": 0.602,
       "recall": 1.0,
-      "f1": 0.755,
+      "f1": 0.751,
       "detection_rate": 1.0
     },
     "Unbundling": {
@@ -93,39 +93,36 @@
     },
     "Upcoding": {
       "true_count": 120,
-      "tp": 12,
-      "fp": 0,
-      "fn": 108,
-      "precision": 1.0,
-      "recall": 0.1,
-      "f1": 0.182,
-      "detection_rate": 0.1
+      "tp": 92,
+      "fp": 21,
+      "fn": 28,
+      "precision": 0.814,
+      "recall": 0.767,
+      "f1": 0.79,
+      "detection_rate": 0.767
     }
   },
   "false_negatives": {
-    "total_missed": 319,
+    "total_missed": 50,
     "by_fraud_type": {
-      "Upcoding": 108,
-      "Code Substitution": 96,
-      "Diagnosis Mismatch": 54,
-      "Phantom Billing": 44,
-      "Code Padding": 17
+      "Upcoding": 28,
+      "Code Substitution": 22
     },
-    "rule_missed": 319,
-    "llm_missed": 319,
-    "both_missed": 319
+    "rule_missed": 50,
+    "llm_missed": 50,
+    "both_missed": 50
   },
   "false_positives": {
-    "total_wrongly_flagged": 31,
+    "total_wrongly_flagged": 57,
     "by_predicted_type": {
-      "Phantom Billing": 20,
-      "Screening Code Abuse": 7,
-      "Diagnosis Mismatch": 3,
-      "Code Substitution": 1
+      "Upcoding": 21,
+      "Diagnosis Mismatch": 15,
+      "Code Substitution": 13,
+      "Screening Code Abuse": 8
     },
     "by_engine": {
-      "llm_claude": 24,
-      "rule_engine": 7
+      "llm_claude": 49,
+      "rule_engine": 8
     }
   }
 }
