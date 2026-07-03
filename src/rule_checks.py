@@ -103,10 +103,45 @@ KNOWN_BUNDLES = {
     ("85025", "36415"): "CBC (85025) includes the venipuncture (36415) — billing both is unbundling",
     ("93306", "93000"): "Complete echocardiogram (93306) includes ECG (93000)",
     ("93306", "93005"): "Complete echocardiogram (93306) includes ECG tracing (93005)",
+    ("93000", "93010"): "Complete ECG (93000) already includes the interpretation and report (93010)",
+    ("93000", "93005"): "Complete ECG (93000) already includes the tracing-only service (93005)",
     ("99213", "99212"): "Cannot bill two E&M visit levels for the same patient on the same day",
     ("99214", "99213"): "Cannot bill two E&M visit levels for the same patient on the same day",
     ("99215", "99214"): "Cannot bill two E&M visit levels for the same patient on the same day",
 }
+
+# ── Panel composition table ──────────────────────────────────────────────────
+# Classic unbundling: billing the individual COMPONENT tests of a lab panel or
+# comprehensive procedure separately, WITHOUT billing the panel itself.
+# NCCI PTP edits cannot catch this pattern — PTP pairs are (comprehensive,
+# component), so if the comprehensive code is absent from the claim there is
+# nothing to pair against. This table lets us detect the components directly.
+#
+# Rule: if a claim bills 2+ components of the same panel and does NOT bill
+# the panel code itself, flag as Unbundling.
+#
+# Sources: CPT organ/disease panel definitions (80047-80076) and CMS lab
+# panel billing policy.
+PANEL_COMPONENTS = {
+    # Lipid panel (80061): cholesterol, HDL, triglycerides
+    "80061": {"82465", "82470", "83718", "84478"},
+    # Comprehensive metabolic panel (80053): 14 chemistry components
+    "80053": {"82040", "82247", "82310", "82374", "82435", "82565",
+              "82947", "84075", "84132", "84155", "84295", "84450",
+              "84460", "84520"},
+    # Basic metabolic panel (80048)
+    "80048": {"82310", "82374", "82435", "82565", "82947", "84132",
+              "84295", "84520"},
+    # CBC with differential (85025): hct, hgb, RBC, WBC, platelet counts
+    "85025": {"85014", "85018", "85041", "85048", "85049"},
+    # Complete transthoracic echocardiogram (93306): limited/component echo
+    # codes and ECG tracing
+    "93306": {"93303", "93304", "93307", "93308", "93005"},
+}
+
+# Office/outpatient E&M visit levels — only ONE level may be billed per
+# patient per day. Billing two different levels is visit-splitting.
+EM_VISIT_LEVELS = {"99211", "99212", "99213", "99214", "99215"}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -275,6 +310,43 @@ class RuleEngine:
         """
         proc_codes = claim.get("procedure_codes", [])
         modifiers  = claim.get("modifiers", [])
+        code_set   = {str(c).strip() for c in proc_codes}
+
+        # ── Check 0: Panel-component split ────────────────────────────────
+        # 2+ components of a panel billed WITHOUT the panel code itself.
+        # NCCI PTP lookups cannot catch this (see PANEL_COMPONENTS note).
+        for panel_code, components in PANEL_COMPONENTS.items():
+            billed_components = code_set & components
+            if panel_code not in code_set and len(billed_components) >= 2:
+                comp_list = ", ".join(sorted(billed_components))
+                return {
+                    "fraud_detected": True,
+                    "fraud_type":     "Unbundling",
+                    "rule_triggered": "panel_component_split",
+                    "explanation":    f"Components of panel {panel_code} billed individually "
+                                      f"({comp_list}) instead of the single comprehensive "
+                                      f"panel code. Billing components separately inflates "
+                                      f"reimbursement versus the bundled panel rate.",
+                    "confidence":     "high",
+                    "flagged_codes":  sorted(billed_components),
+                }
+
+        # ── Check 0b: E&M visit-level splitting ───────────────────────────
+        # Two different office-visit levels on one claim = one visit split
+        # into multiple E&M codes.
+        em_billed = code_set & EM_VISIT_LEVELS
+        if len(em_billed) >= 2:
+            em_list = ", ".join(sorted(em_billed))
+            return {
+                "fraud_detected": True,
+                "fraud_type":     "Unbundling",
+                "rule_triggered": "em_visit_split",
+                "explanation":    f"Multiple E&M office-visit levels billed for the same "
+                                  f"patient on the same claim ({em_list}). Only one visit "
+                                  f"level may be billed per patient per day.",
+                "confidence":     "high",
+                "flagged_codes":  sorted(em_billed),
+            }
 
         # Generate all possible pairs from the procedure codes on this claim
         # e.g. ["80061","82465","85025"] → pairs: (80061,82465),(80061,85025),(82465,85025)
